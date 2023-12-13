@@ -100,10 +100,6 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        // const projection = {
-        //   membersDetails:0
-        // }
-        // const result = await allShows.find(query).project(projection).toArray();
         const result = await allShows.find(query).toArray();
         res.send(result);
       } catch (error) {
