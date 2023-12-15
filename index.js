@@ -35,18 +35,6 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-//use verify admin after verifyToken
-const verifyAdmin = async (req, res, next) => {
-  const email = req.decoded.email;
-  const query = { email: email };
-  const user = await usersCollection.findOne(query);
-  const isAdmin = user?.role === "admin";
-  if (!isAdmin) {
-    return res.status(403).send({ message: "Forbidden access" });
-  }
-
-  next();
-};
 
 async function run() {
   try {
@@ -65,6 +53,20 @@ async function run() {
       res.send({ token });
     });
 
+    
+//use verify admin after verifyToken
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email };
+  const user = await usersCollection.findOne(query);
+  const isAdmin = user?.role === "admin";
+  if (!isAdmin) {
+    return res.status(403).send({ message: "Forbidden access" });
+  }
+
+  next();
+};
+
     //post users
     app.post("/users", verifyToken, async (req, res) => {
       const user = req.body;
@@ -76,6 +78,58 @@ async function run() {
       } else {
         return res.send({ message: "user already exists", insertedId: null });
       }
+    });
+
+    //get users
+
+    app.get("/users", verifyToken,verifyAdmin, async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        // console.log(error);
+      }
+    });
+
+    //get role
+    app.get("/user-role/:email", verifyToken, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const query = { email: email };
+        // console.log(query)
+        const result = await usersCollection.find(query).toArray();
+        // console.log(result)
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+     //make admin
+     app.patch(
+      "/users/make-admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await usersCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
+    );
+
+    
+    //delete users
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
     });
 
     //get band shows
@@ -106,7 +160,7 @@ async function run() {
         // console.log(error);
       }
     });
-    app.put("/shows/:id", verifyToken, async (req, res) => {
+    app.put("/shows/:id", verifyToken,verifyAdmin, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -135,7 +189,7 @@ async function run() {
       }
     });
     //post new show
-    app.post("/shows", async (req, res) => {
+    app.post("/shows",verifyToken,verifyAdmin, async (req, res) => {
       try {
         const newShow = req.body;
         const result = await allShows.insertOne(newShow);
@@ -145,7 +199,7 @@ async function run() {
       }
     });
     //add to cart
-    app.post("/cartTickets", async (req, res) => {
+    app.post("/cartTickets",verifyToken, async (req, res) => {
       try {
         const ticket = req.body;
         const result = await cartTickets.insertOne(ticket);
